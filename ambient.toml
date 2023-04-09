@@ -1,0 +1,26 @@
+[project]
+id = "arpg"
+sname = "arpg"
+version = "0.0.1"
+
+[messages]
+set_controller = { name = "Set controller", description = "Sets the animation controller.", fields = { value = { type = "U32" } } }
+
+[messages.input]
+name = "Input"
+description = "Describes the input state of the player."
+[messages.input.fields]
+direction = { type = "Vec2", name = "Direction", description = "The movement direction of the player." }
+mouse_delta_x = { type = "F32", name = "Mouse delta X", description = "The mouse delta X." }
+
+[components]
+player_camera_ref = { type = "EntityId", name = "Player camera ref", description = "The player's camera.", attributes = ["Debuggable"] }
+player_mesh_ref = { type = "EntityId", name = "Player Mesh ref", description = "The player's Mesh.", attributes = ["Debuggable"] }
+player_movement_direction = { type = "Vec2", name = "Player movement direction", description = "The player's movement direction.", attributes = ["Debuggable"] }
+player_mouse_delta_x = { type = "F32", name = "Player mouse delta X", description = "The player's mouse delta X.", attributes = ["Debuggable"] }
+player_state = { type = "U8", name = "Player state", description = "The player's state.", attributes = ["Debuggable"] }
+player_state_time = { type = "F32", name = "Player state time", description = "The player's state time.", attributes = ["Debuggable"] }
+requested_state = { type = "U8", name = "request state", description = "The unit's request state.", attributes = ["Debuggable"] }
+requested_skill = { type = "U32", name = "request cast skill", description = "The unit's request skill.", attributes = ["Debuggable"] }
+skills = { type = { type = "Vec", element_type = "U32" }, name = "skills", description = "The unit's skills", attributes = ["Debuggable", "Networked"] }
+stats = { type = { type = "Vec", element_type = "U32" }, name = "stats", description = "The unit's stats", attributes = ["Debuggable", "Networked"] }
