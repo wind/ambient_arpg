@@ -5,11 +5,12 @@ use ambient_api::components::core::transform::{lookat_center, rotation, scale, t
 use crate::components::*;
 use crate::common::*;
 use crate::state::*;
+use crate::unit::*;
 
 pub enum SkillEventDef {
     AttackCircle { radius : f32 },
-    HealMp { mp : u32 },
-    HealHp { hp : u32 },
+    HealMp { value : u32 },
+    HealHp { value : u32 },
 }
 
 
@@ -19,14 +20,12 @@ pub struct SkillEvent {
 }
 
 pub struct Skill {
-    time : f32,
-    cost_hp : u32,
-    cost_mp : u32,
-    anim : Animation,
+    pub time : f32,
+    pub cost_hp : u32,
+    pub cost_mp : u32,
+    pub anim : Animation,
     events : Vec<SkillEvent>,
 }
-
-pub type UnitStats = Vec<u32>;
 
 fn process_damage(attack_stats : &UnitStats, defense_stats : &mut UnitStats) {
     let damage = if attack_stats[Stats::Attack] > defense_stats[Stats::Defense] { attack_stats[Stats::Attack] - defense_stats[Stats::Defense] } else {1};
@@ -46,11 +45,14 @@ fn process_circle_targets(entity_id : EntityId, center : Vec3, radius : f32, pro
     let uni_objects_query = query((translation(), stats())).build();
     let unit_objects = uni_objects_query.evaluate();
 
-    for (id, (_, s)) in unit_objects.iter().filter(|(id, (trans, s))| *id != entity_id && trans.distance_squared(center) < radius * radius ) {
+    for (id, (_, s)) in unit_objects.iter().filter(|(id, (trans, s))| *id != entity_id && s[Stats::Hp] > 0 && trans.distance_squared(center) < radius * radius ) {
         //TODO: find a better way
-        let mut s = s.clone();
-        proc(&mut s);
-        entity::set_component(*id, stats(), s);
+        //let mut s = s.clone();
+        //proc(&mut s);
+        //entity::set_component(*id, stats(), s);
+        entity::mutate_component(*id, stats(), |x| {
+            proc(x);
+        });
         request_state(*id, CharacterState::GetHit);
     }
 }
@@ -68,11 +70,23 @@ impl Skill {
                             process_damage(stats, defense_stats);
                         });
                     },
-                    SkillEventDef::HealHp { hp } => {
-
+                    SkillEventDef::HealHp { value } => {
+                        let mut hp = stats[Stats::Hp] + value;
+                        if hp > stats[Stats::Hp] {
+                            hp = stats[Stats::MaxHp];
+                        }
+                        if hp != stats[Stats::Hp] {
+                            entity::mutate_component(entity_id, crate::components::stats(), |x| x[Stats::Hp] = hp );
+                        }
                     },
-                    SkillEventDef::HealMp { mp } => {
-
+                    SkillEventDef::HealMp { value } => {
+                        let mut mp = stats[Stats::Mp] + value;
+                        if mp > stats[Stats::Mp] {
+                            mp = stats[Stats::MaxMp];
+                        }
+                        if mp != stats[Stats::Mp] {
+                            entity::mutate_component(entity_id, crate::components::stats(), |x| x[Stats::Mp] = mp );
+                        }
                     },
                 }
             }
@@ -87,11 +101,52 @@ pub struct SkillManager {
 impl SkillManager {
     pub fn new() -> Self {
         let mut skills = std::collections::HashMap::new();
+
+        //TODO: load from config file
         skills.insert(1, Skill {
             time : 1.,
             cost_mp : 10,
             cost_hp : 0,
             anim : Animation::Attack01,
+            events : vec!(
+                SkillEvent {
+                    time : 0.3,
+                    def : SkillEventDef::AttackCircle { radius : 2. }
+                }
+            )
+        });
+
+        skills.insert(2, Skill {
+            time : 0.5,
+            cost_mp : 10,
+            cost_hp : 0,
+            anim : Animation::DefendStart,
+            events : vec!(
+                SkillEvent {
+                    time : 0.,
+                    def : SkillEventDef::HealHp { value : 100 }
+                }
+            )
+        });
+
+        skills.insert(3, Skill {
+            time : 1.,
+            cost_mp : 10,
+            cost_hp : 0,
+            anim : Animation::Attack02Start,
+            events : vec!(
+                SkillEvent {
+                    time : 0.3,
+                    def : SkillEventDef::AttackCircle { radius : 2. }
+                }
+            )
+        });
+
+        skills.insert(4, Skill {
+            time : 1.,
+            cost_mp : 10,
+            cost_hp : 0,
+            anim : Animation::Attack04,
             events : vec!(
                 SkillEvent {
                     time : 0.3,

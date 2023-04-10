@@ -21,6 +21,10 @@ pub fn main() {
             messages::SetController::new(3u32).send_server_reliable();
         }
 
+        if delta.keys.contains(&KeyCode::Key4) {
+            messages::SetController::new(4u32).send_server_reliable();
+        }
+
         let mut displace = Vec2::ZERO;
         if pressed.keys.contains(&KeyCode::W) {
             displace.y += 1.0;

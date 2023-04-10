@@ -44,15 +44,10 @@ enum_ext! {
         Attack03Maintain = 12,
         Attack04 = 13,
         GetHit = 14,
-        Die = 15,
-        DieRecovery = 16,
-        Count = 17,
-    }
-}
-
-impl Animation {
-    pub fn path(self) -> String {
-        format!("assets/WizardPolyArt/Animations/{}.fbx/animations/Take 001.anim", self.name())
+        DefendStart = 15,
+        Die = 16,
+        DieRecovery = 17,
+        Count = 18,
     }
 }
 

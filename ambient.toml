@@ -21,6 +21,8 @@ player_mouse_delta_x = { type = "F32", name = "Player mouse delta X", descriptio
 player_state = { type = "U8", name = "Player state", description = "The player's state.", attributes = ["Debuggable"] }
 player_state_time = { type = "F32", name = "Player state time", description = "The player's state time.", attributes = ["Debuggable"] }
 requested_state = { type = "U8", name = "request state", description = "The unit's request state.", attributes = ["Debuggable"] }
+base_id = { type = "U32", name = "base id", description = "The unit's base id", attributes = ["Debuggable"] }
 requested_skill = { type = "U32", name = "request cast skill", description = "The unit's request skill.", attributes = ["Debuggable"] }
+executing_skill = { type = "U32", name = "executing skill", description = "The unit's executing skill.", attributes = ["Debuggable"] }
 skills = { type = { type = "Vec", element_type = "U32" }, name = "skills", description = "The unit's skills", attributes = ["Debuggable", "Networked"] }
 stats = { type = { type = "Vec", element_type = "U32" }, name = "stats", description = "The unit's stats", attributes = ["Debuggable", "Networked"] }
