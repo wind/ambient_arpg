@@ -1,6 +1,7 @@
 
 use ambient_api::prelude::*;
 use ambient_api::components::core::transform::{lookat_center, rotation, scale, translation};
+use ambient_api::components::core::player::{player, user_id};
 
 use crate::components::*;
 use crate::common::*;
@@ -41,19 +42,24 @@ fn process_damage(attack_stats : &UnitStats, defense_stats : &mut UnitStats) {
     println!("damage:{} left:{}", damage, defense_stats[Stats::Hp]);
 }
 
+pub fn get_target(entity_id : EntityId) -> EntityId {
+    let uni_objects_query = query((stats())).build();
+    let unit_objects = uni_objects_query.evaluate();
+    unit_objects.iter().filter(|(id, (s))| *id == entity_id).next().map_or(EntityId::null(), |x| x.0)
+}
+
 fn process_circle_targets(entity_id : EntityId, center : Vec3, radius : f32, proc : impl Fn(&mut UnitStats)) {
     let uni_objects_query = query((translation(), stats())).build();
     let unit_objects = uni_objects_query.evaluate();
 
     for (id, (_, s)) in unit_objects.iter().filter(|(id, (trans, s))| *id != entity_id && s[Stats::Hp] > 0 && trans.distance_squared(center) < radius * radius ) {
-        //TODO: find a better way
-        //let mut s = s.clone();
-        //proc(&mut s);
-        //entity::set_component(*id, stats(), s);
         entity::mutate_component(*id, stats(), |x| {
             proc(x);
         });
         request_state(*id, CharacterState::GetHit);
+        if !entity::has_component(*id, player()) {
+            request_ai_target(*id, entity_id);
+        }
     }
 }
 

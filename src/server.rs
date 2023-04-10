@@ -63,6 +63,35 @@ pub struct Context {
     unit_manager : UnitManager,
 }
 
+fn do_ai(context : &Context, entity_id : EntityId, state: CharacterState) {
+    if state == CharacterState::Dying {
+        request_ai_target(entity_id, EntityId::null());
+        return;
+    }
+
+    if let Some(target_id) = entity::get_component(entity_id, ai_target()) {
+        //println!("{} approach_target target_id:{}", entity_id, target_id);
+        let target_id = get_target(target_id);
+        if target_id.is_null() {
+            return;
+        }
+
+        let target_state = CharacterState::from(entity::get_component(target_id, player_state()).unwrap());
+        if target_state == CharacterState::Dying {
+            request_ai_target(entity_id, EntityId::null());
+            return;
+        }
+
+        approach_target(entity_id, target_id);
+        do_skill(entity_id, target_id, 1);
+    }
+
+}
+
+fn process_ai(context : &Context, entity_id : EntityId, state : CharacterState) {
+    do_ai(context, entity_id, state);
+}
+
 fn process_skill(context : &Context, entity_id : EntityId, stats : &UnitStats, skill_time : f32) {
     if let Some(skill_id) = entity::get_component(entity_id, executing_skill()) {
         if skill_id != 0 {
@@ -82,19 +111,19 @@ fn process_state(context : &Context, def: &Unit, entity_id : EntityId, stats : &
     if req_state != CharacterState::Count {
         next_state = req_state;
         state_time = 0.;
-        println!("req state:{} {} {}", entity_id, state as u8, req_state as u8);
+        entity::add_component(entity_id, executing_skill(), 0);
+        //println!("req state:{} {} {}", entity_id, state as u8, req_state as u8);
         request_state(entity_id, CharacterState::Count);
+    }
+
+    if stats[Stats::Hp] == 0 {
+        next_state = CharacterState::Dying;
     }
 
     if next_state == CharacterState::Dying {
         if state_time > def.reborn_time {
             next_state = CharacterState::Idle;
         }
-        return (next_state, state);
-    }
-
-    if stats[Stats::Hp] == 0 {
-        next_state = CharacterState::Dying;
     }
 
     if next_state == CharacterState::GetHit {
@@ -131,7 +160,7 @@ fn process_state(context : &Context, def: &Unit, entity_id : EntityId, stats : &
     }
 
     if next_state != state {
-        println!("change state:{} {}", entity_id, next_state as u8);
+        //println!("change state:{} {}", entity_id, next_state as u8);
         //entity::set_component(entity_id, player_state_last(), state as u8);
         entity::set_component(entity_id, player_state(), next_state as u8);
         entity::set_component(entity_id, player_state_time(), 0.);
@@ -329,6 +358,8 @@ pub fn main() {
             process_skill(&context, player_id, &stats, state_time);
 
             process_movement(player_id, state, direction, mouse_delta_x);
+
+            process_ai(&context, player_id, state);
         }
     });
 

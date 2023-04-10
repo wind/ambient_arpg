@@ -26,3 +26,4 @@ requested_skill = { type = "U32", name = "request cast skill", description = "Th
 executing_skill = { type = "U32", name = "executing skill", description = "The unit's executing skill.", attributes = ["Debuggable"] }
 skills = { type = { type = "Vec", element_type = "U32" }, name = "skills", description = "The unit's skills", attributes = ["Debuggable", "Networked"] }
 stats = { type = { type = "Vec", element_type = "U32" }, name = "stats", description = "The unit's stats", attributes = ["Debuggable", "Networked"] }
+ai_target = { type = "EntityId", name = "ai target", description = "The unit's ai target.", attributes = ["Debuggable"] }
