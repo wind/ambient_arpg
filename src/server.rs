@@ -103,6 +103,11 @@ fn process_skill(context : &Context, entity_id : EntityId, stats : &UnitStats, s
 }
 
 fn process_state(context : &Context, def: &Unit, entity_id : EntityId, stats : &UnitStats, req_state : CharacterState, state : CharacterState, state_time : f32, direction : Vec2) -> (CharacterState, CharacterState) {
+    fn clear_skill(entity_id : EntityId) {
+        entity::add_component(entity_id, requested_skill(), 0);
+        entity::add_component(entity_id, executing_skill(), 0);
+    }
+
     entity::set_component(entity_id, player_state_time(), state_time + frametime());
 
     let mut next_state = state;
@@ -111,12 +116,13 @@ fn process_state(context : &Context, def: &Unit, entity_id : EntityId, stats : &
     if req_state != CharacterState::Count {
         next_state = req_state;
         state_time = 0.;
-        entity::add_component(entity_id, executing_skill(), 0);
-        //println!("req state:{} {} {}", entity_id, state as u8, req_state as u8);
+        clear_skill(entity_id);
+        //println!("req state:{} {} {}", entity_id, state, req_state);
         request_state(entity_id, CharacterState::Count);
     }
 
     if stats[Stats::Hp] == 0 {
+        clear_skill(entity_id);
         next_state = CharacterState::Dying;
     }
 
@@ -125,44 +131,46 @@ fn process_state(context : &Context, def: &Unit, entity_id : EntityId, stats : &
             next_state = CharacterState::Idle;
         }
     }
-
-    if next_state == CharacterState::GetHit {
-        let hit_time = 0.5;
-        if state_time > hit_time {
-            next_state = CharacterState::Idle;
-        }
-    }
-
-    if next_state == CharacterState::Attacking {
-        let skill_id = entity::get_component(entity_id, executing_skill()).unwrap();
-        let skill_def = context.skill_manager.get(skill_id).unwrap();
-        if state_time > skill_def.time {
-            entity::set_component(entity_id, executing_skill(), 0);
-            next_state = CharacterState::Idle;
-        }
-    }else if let Some(req_skill) = entity::get_component(entity_id, requested_skill())  {
-            if req_skill != 0 {
-                next_state = CharacterState::Attacking;
-                entity::set_component(entity_id, requested_skill(), 0);
-                entity::add_component(entity_id, executing_skill(), req_skill);
-            }else {
-                //next_state = CharacterState::Idle;
+    else {
+        if next_state == CharacterState::GetHit {
+            let hit_time = 0.5;
+            if state_time > hit_time {
+                next_state = CharacterState::Idle;
             }
-    }
-
-    if next_state.movable() {
-        if direction.length_squared() > 0. {
-            next_state = CharacterState::Moving;
         }
-        else {
-            next_state = CharacterState::Idle;
+
+        if next_state == CharacterState::Attacking {
+            let skill_id = entity::get_component(entity_id, executing_skill()).unwrap();
+            let skill_def = context.skill_manager.get(skill_id).unwrap();
+            if state_time > skill_def.time {
+                entity::add_component(entity_id, executing_skill(), 0);
+                next_state = CharacterState::Idle;
+            }
+        }else if let Some(req_skill) = entity::get_component(entity_id, requested_skill())  {
+                if req_skill != 0 {
+                    next_state = CharacterState::Attacking;
+                    entity::add_component(entity_id, requested_skill(), 0);
+                    entity::add_component(entity_id, executing_skill(), req_skill);
+                }else {
+                    //next_state = CharacterState::Idle;
+                }
+        }
+
+        if next_state.movable() {
+            if direction.length_squared() > 0. {
+                clear_skill(entity_id);
+                next_state = CharacterState::Moving;
+            }
+            else {
+                next_state = CharacterState::Idle;
+            }
         }
     }
 
     if next_state != state {
-        //println!("change state:{} {}", entity_id, next_state as u8);
-        //entity::set_component(entity_id, player_state_last(), state as u8);
-        entity::set_component(entity_id, player_state(), next_state as u8);
+        //println!("change state:{} {}", entity_id, next_state);
+        //entity::set_component(entity_id, player_state_last(), state.0);
+        entity::set_component(entity_id, player_state(), next_state.0);
         entity::set_component(entity_id, player_state_time(), 0.);
     }
 
@@ -251,8 +259,8 @@ fn spawn_player(def: &Unit, pos : Vec3, id : EntityId, user: String) {
             .with(base_id(), def.id)
             .with(translation(), pos)
             .with(stats(), def.stats.clone())
-            .with(requested_state(), CharacterState::Count as u8)
-            .with(player_state(), CharacterState::Idle as u8)
+            .with(requested_state(), CharacterState::Count.0)
+            .with(player_state(), CharacterState::Idle.0)
             .with(player_state_time(), 0.)
             .with(player_camera_ref(), camera)
             //.with(color(), rand::random::<Vec3>().extend(1.0))
@@ -266,7 +274,9 @@ fn spawn_player(def: &Unit, pos : Vec3, id : EntityId, user: String) {
 }
 
 
-fn spawn_npc(def : &Unit, pos : Vec3) {
+fn spawn_npc(def : &Unit, pos : Vec3, rot : f32) {
+
+    let rot = Quat::from_rotation_z(rot * std::f32::consts::PI / 180.);
 
     let entity_id = Entity::new()
         .with_merge(make_transformable())
@@ -278,9 +288,10 @@ fn spawn_npc(def : &Unit, pos : Vec3) {
         .with(player_movement_direction(), vec2(0., 0.))
         .with(player_mouse_delta_x(), 0.)
         .with(translation(), pos)
+        .with(rotation(), rot)
         .with(stats(), def.stats.clone())
-        .with(requested_state(), CharacterState::Count as u8)
-        .with(player_state(), CharacterState::Idle as u8)
+        .with(requested_state(), CharacterState::Count.0)
+        .with(player_state(), CharacterState::Idle.0)
         .with(player_state_time(), 0.)
         //.with(color(), rand::random::<Vec3>().extend(1.0))
         .with(character_controller_height(), 2.)
@@ -303,35 +314,24 @@ pub fn main() {
     Entity::new()
         .with_merge(make_transformable())
         .with_default(quad())
-        .with(scale(), Vec3::ONE * 10.)
+        .with(scale(), Vec3::ONE * 20.)
         .with(color(), vec4(0.5, 0.5, 0.5, 1.))
         .with(translation(), vec3(0., 0., 0.0))
         .with_default(plane_collider())
         .spawn();
 
     let npc_def = context.unit_manager.get(1).unwrap();
-    spawn_npc(npc_def, vec3(5., 0., 0.));
-    spawn_npc(npc_def, vec3(-5., 0., 0.));
-    spawn_npc(npc_def, vec3(0., 5., 0.));
-    spawn_npc(npc_def, rand::random::<Vec3>());
+    spawn_npc(npc_def, vec3(5., 0., 0.), 90.);
+    spawn_npc(npc_def, vec3(-5., 0., 0.), -90.);
+    spawn_npc(npc_def, vec3(0., 5., 0.), 180.);
+    spawn_npc(npc_def, vec3(0., -5., 0.), 0.);
 
     let _context = context.clone();
     spawn_query((player(), user_id())).bind(move |players| {
         for (id, (_, user)) in players {
-            println!("user_id:{}", user);
+            println!("join user_id:{}", user);
             let player_def = _context.unit_manager.get(1).unwrap();
             spawn_player(player_def, vec3(0., 0., 0.), id, user);
-        }
-    });
-
-    query((
-        player(),
-        player_movement_direction(),
-        player_mouse_delta_x(),
-    ))
-    .each_frame(move |players| {
-        for (player_id, _) in players {
-            //process_state(player_id);
         }
     });
 
@@ -379,17 +379,18 @@ pub fn main() {
     });
 
     // When a player despawns, clean up their objects.
-    //let player_objects_query = query(user_id()).build();
+    let player_objects_query = query(user_id()).build();
     despawn_query(user_id()).requires(player()).bind({
         move |players| {
-            //let player_objects = player_objects_query.evaluate();
+            let player_objects = player_objects_query.evaluate();
             for (id, player_user_id) in &players {
-               // for (id, _) in player_objects
-                  //  .iter()
-                   // .filter(|(_, object_user_id)| *player_user_id == *object_user_id)
-                //{
+                //println!("leave user_id:{}", player_user_id);
+                for (id, _) in player_objects
+                    .iter()
+                    .filter(|(_, object_user_id)| *player_user_id == *object_user_id)
+                {
                     entity::despawn(*id);
-                //}
+                }
             }
         }
     });

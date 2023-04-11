@@ -5,7 +5,7 @@ use crate::components::*;
 use crate::common::*;
 
 pub fn request_state(entity_id : EntityId, state : CharacterState) {
-    entity::set_component(entity_id, requested_state(), state as u8);
+    entity::set_component(entity_id, requested_state(), state.0);
 }
 
 /*

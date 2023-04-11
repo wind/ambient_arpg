@@ -1,27 +1,34 @@
 //use ambient_api::prelude::*;
 //use ambient_api::entity::{AnimationAction, AnimationController};
+use std::fmt;
 
 macro_rules! enum_ext {
     (enum $name:ident {
         $($variant:ident = $val:expr),*,
     }) => {
-        #[derive(Clone, Copy, PartialEq)]
-        pub enum $name {
-            $($variant = $val),*
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        pub struct $name(pub u8);
+
+        impl $name {
+            $(pub const $variant:Self = $name($val);)*
         }
 
         impl $name {
-            pub fn name(&self) -> &'static str {
+            pub fn name(self) -> &'static str {
                 match self {
                     $($name::$variant => stringify!($variant)),*
+                    ,_ => unreachable!(),
                 }
             }
 
             pub fn from(val : u8) -> Self {
-                match val {
-                    $($val => $name::$variant),*
-                    ,_ => Self::Count,
-                }
+                $name(val)
+            }
+        }
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}", self.name())
             }
         }
     };
@@ -68,7 +75,7 @@ impl CharacterState {
     }
 }
 
-macro_rules! enum_ext2 {
+macro_rules! enum_index {
     (enum $name:ident {
         $($variant:ident = $val:expr),*,
     }) => {
@@ -81,7 +88,7 @@ macro_rules! enum_ext2 {
     };
 }
 
-enum_ext2! {
+enum_index! {
     enum Stats {
         Hp = 0,
         Mp = 1,
@@ -94,3 +101,4 @@ enum_ext2! {
         Count = 16,
     }
 }
+
